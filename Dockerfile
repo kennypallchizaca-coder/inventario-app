@@ -32,7 +32,10 @@ COPY --from=build-test --chown=node:node /app/server.js ./
 COPY --from=build-test --chown=node:node /app/db.js ./
 COPY --from=build-test --chown=node:node /app/public ./public
 
-RUN mkdir -p /app/data && chown -R node:node /app
+# La imagen de ejecución no instala dependencias: retirar npm reduce superficie de ataque.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+    && mkdir -p /app/data \
+    && chown -R node:node /app
 
 USER node
 
