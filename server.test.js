@@ -55,13 +55,14 @@ test('GET /health responde 200 y status ok', async () => {
   server.close();
 });
 
-test('GET /version responde con version y color', async () => {
+test('GET /version responde con version, color y secreto', async () => {
   const app = createApp();
   const server = await startServer(app);
   const res = await request(server, 'GET', '/version');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.version);
   assert.ok(res.body.color);
+  assert.strictEqual(typeof res.body.secretConfigured, 'boolean');
   server.close();
 });
 

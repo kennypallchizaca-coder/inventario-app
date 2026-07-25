@@ -6,13 +6,24 @@ const db = require('./db');
 const APP_VERSION = process.env.APP_VERSION || 'v1';
 const APP_COLOR = process.env.APP_COLOR || 'blue';
 const SIMULATE_FAILURE = process.env.SIMULATE_FAILURE === 'true';
+const STARTUP_DELAY_SECONDS = parseInt(process.env.STARTUP_DELAY_SECONDS || '0', 10);
+const API_KEY = process.env.API_KEY || null;
 
 function createApp() {
+  const startTime = Date.now();
   const app = express();
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.get('/health', (req, res) => {
+    const elapsedSeconds = (Date.now() - startTime) / 1000;
+    if (elapsedSeconds < STARTUP_DELAY_SECONDS) {
+      return res.status(503).json({
+        status: 'starting',
+        reason: `app en arranque lento (${Math.ceil(STARTUP_DELAY_SECONDS - elapsedSeconds)}s restantes)`
+      });
+    }
+
     if (SIMULATE_FAILURE || !db.canAccessDb()) {
       return res.status(500).json({ status: 'error', reason: 'fallo simulado o base de datos no accesible' });
     }
@@ -24,6 +35,8 @@ function createApp() {
       version: APP_VERSION,
       color: APP_COLOR,
       hostname: os.hostname(),
+      secretConfigured: Boolean(API_KEY),
+      secretMasked: API_KEY ? `${API_KEY.slice(0, 3)}***` : 'no-configurado'
     });
   });
 
