@@ -5,17 +5,20 @@ metadata:
   labels:
     app: inventario-app
     version: v2
+    rollout: canary
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: inventario-app
       version: v2
+      rollout: canary
   template:
     metadata:
       labels:
         app: inventario-app
         version: v2
+        rollout: canary
     spec:
       containers:
         - name: inventario-app

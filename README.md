@@ -9,7 +9,7 @@ Este repositorio contiene la solución completa para la práctica de laboratorio
 - `Dockerfile`: Multi-stage Docker build (etapa `build-test` con `npm test` y etapa final mínima `runtime`).
 - `.github/workflows/ci-cd.yml`: Workflow automatizado con `build-test`, escaneo de vulnerabilidades **Trivy** (severidad `CRITICAL`), y publicación en **GHCR** (`ghcr.io`).
 - `k8s/`:
-  - `secret.yaml`: Configuración de credenciales ficticias (`API_KEY`) mediante Secrets de K8s.
+  - `secret.example.yaml`: Plantilla documental del Secret. La clave real se crea directamente en el clúster y `k8s/secret.yaml` está ignorado por Git.
   - `deployment.yaml`: Deployment base con 2 réplicas, estrategia `RollingUpdate`, `readinessProbe` y `livenessProbe` adaptadas a arranque lento.
   - `service.yaml`: Service nativo tipo NodePort.
   - `canary/`: Manifiestos para despliegue Canary (`deployment-v1.yaml` [4 réplicas / 80%], `deployment-v2.yaml` [1 réplica / 20%], `service.yaml`).
@@ -78,8 +78,13 @@ El pipeline configurado en `.github/workflows/ci-cd.yml` ejecuta:
 
 #### Paso 4.1: Crear el Secret y Desplegar la Aplicación
 ```bash
-# 1. Aplicar Secret de K8s (Componente Adicional 1)
-kubectl apply -f k8s/secret.yaml
+# 1. Crear Secret de K8s (Componente Adicional 1)
+# PowerShell: la clave real queda solo en el clúster; no se guarda en Git.
+$env:INVENTARIO_API_KEY = 'clave-ficticia-para-el-laboratorio'
+kubectl create secret generic inventario-secret --from-literal=API_KEY=$env:INVENTARIO_API_KEY
+
+# Verificación segura: confirma la existencia sin mostrar el valor.
+kubectl get secret inventario-secret
 
 # 2. Desplegar Deployment y Service base
 kubectl apply -f k8s/deployment.yaml
@@ -122,11 +127,13 @@ En la carpeta `k8s/canary/` se encuentran los manifiestos para un reparto de tr�
 
 #### Paso 6.1: Desplegar v1 (4 réplicas) y Canary v2 (1 réplica)
 ```bash
-kubectl apply -f k8s/secret.yaml
+# El Secret ya fue creado en el paso 4.1.
 kubectl apply -f k8s/canary/deployment-v1.yaml
 kubectl apply -f k8s/canary/deployment-v2.yaml
 kubectl apply -f k8s/canary/service.yaml
 ```
+
+Los Pods Canary incluyen la etiqueta `rollout: canary`; el Service Canary usa la misma etiqueta para no mezclar el tráfico con el Deployment base que continúa corriendo.
 
 #### Paso 6.2: Demostración del Reparto Proporcional de Tráfico
 Ejecutar un bucle de 20 peticiones `curl` al endpoint `/version`:
@@ -162,9 +169,10 @@ curl http://<MINIKUBE_IP>:<NODE_PORT>/version
 
 ### 8. Componentes Adicionales Implementados
 
-#### 🔑 A. Manejo de Secretos (`k8s/secret.yaml`)
-- Credencial ficticia `API_KEY` almacenada en un Secret de Kubernetes y consumida como variable de entorno mediante `secretKeyRef` en los Deployments.
-- Verificación en `/version`: La clave es leída por la app sin quedar expuesta en el código fuente de Git.
+#### 🔑 A. Manejo de Secretos (`k8s/secret.example.yaml`)
+- La credencial `API_KEY` se crea con `kubectl create secret` y queda en el API de Kubernetes; `k8s/secret.yaml` está incluido en `.gitignore` para impedir que una clave real llegue al repositorio.
+- Los Deployments la consumen exclusivamente mediante `secretKeyRef`; no hay una clave real escrita en código ni manifiestos versionados.
+- Verificación en `/version`: la app expone solo `secretConfigured: true` y una máscara, nunca el valor de la clave.
 
 #### 🛡️ B. Escaneo de Seguridad en CI (Trivy Action)
 - Paso automatizado en `.github/workflows/ci-cd.yml` usando `aquasecurity/trivy-action`.
@@ -179,10 +187,4 @@ curl http://<MINIKUBE_IP>:<NODE_PORT>/version
 
 ## 📈 Métricas DORA (Parte II)
 
-| Métrica DORA | Valor Calculado | Clasificación DORA |
-|---|---|---|
-| **Lead Time for Changes** | ~14 minutos | **High / Medium** |
-| **Deployment Frequency** | 4 despliegues / día | **High** |
-| **Change Failure Rate** | 12.5% (1 rollback de 8 intentos) | **High** |
-
-*(Consulta los detalles completos de las métricas en el archivo `reporte_reflexion.pdf`).*
+Las métricas se documentan en `reporte_reflexion.pdf`, junto con los timestamps y las salidas de comandos que las sustentan. No se usan estimaciones: para recalcularlas se debe conservar la salida de `git log --format='%H|%aI|%s'` y de cada `kubectl set image`/`kubectl rollout status`.

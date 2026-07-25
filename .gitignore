@@ -3,3 +3,7 @@ npm-debug.log
 .DS_Store
 data/products.json
 data/test-products.json
+k8s/secret.yaml
+.playwright-cli/
+tmp/
+output/
