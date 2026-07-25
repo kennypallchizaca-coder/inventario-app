@@ -1,5 +1,5 @@
 # Etapa 1: instalar dependencias y ejecutar pruebas
-FROM node:22-alpine AS build-test
+FROM node:24-alpine AS build-test
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN npm test
 
 
 # Etapa 2: imagen final
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 ENV NODE_ENV=production
 ENV PORT=3000
