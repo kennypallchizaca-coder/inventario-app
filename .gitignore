@@ -1,13 +1,15 @@
 node_modules/
-npm-debug.log
+npm-debug.log*
+*.log
+*.zip
 .DS_Store
 data/products.json
 data/test-products.json
 k8s/secret.yaml
+entregables/k8s/secret.yaml
 .playwright-cli/
 tmp/
 output/
 demostracion.md
 entregables/
-
 

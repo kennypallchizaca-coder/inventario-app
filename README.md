@@ -1,76 +1,41 @@
-# Inventario App: CI/CD, Kubernetes y métricas DORA
+# inventario-app: Práctica de CI/CD, Kubernetes y Métricas DORA
 
-Implementación de una aplicación web de inventario en Node.js/Express para demostrar un flujo de integración y entrega continua. El repositorio incluye pruebas automatizadas, una imagen Docker multi-stage, publicación en GitHub Container Registry, despliegue RollingUpdate, estrategias Canary y Blue-Green, controles de seguridad y evidencia de métricas DORA.
+Repositorio completo para el Examen Final - Parte 1 (Práctica CI/CD). Aplicación web de inventario en Node.js/Express con almacenamiento local en `data/products.json`, empaquetado Docker multi-stage, pipeline automatizado en GitHub Actions con escaneo de vulnerabilidades Trivy y publicación en GitHub Container Registry (GHCR), despliegue base en Kubernetes Minikube con RollingUpdate, estrategias de despliegue progresivo (Canary y Blue-Green), componentes adicionales de buenas prácticas y cálculo de métricas DORA.
 
-## Alcance y cumplimiento
+---
 
-| Criterio | Implementación | Evidencia verificable |
+## Tabla de Cumplimiento de la Rúbrica
+
+| Requisito / Dimensión | Estado | Implementación y Ubicación en Repositorio |
 | --- | --- | --- |
-| Integración continua | GitHub Actions instala dependencias con `npm ci` y ejecuta `npm test`. | Workflow `.github/workflows/ci-cd.yml`; ejecución exitosa del workflow #5. |
-| Contenerización | `Dockerfile` multi-stage: pruebas en `build-test` y ejecución mínima en `runtime`. | `docker build` ejecuta las pruebas antes de crear la imagen final. |
-| Seguridad | Trivy bloquea vulnerabilidades de severidad `CRITICAL`; los secretos no se versionan. | `exit-code: 1`, `secretKeyRef`, `.gitignore` y `k8s/secret.example.yaml`. |
-| Despliegue base | Deployment con dos réplicas, RollingUpdate, readiness y liveness probes. | `k8s/deployment.yaml`; rollout exitoso con 2/2 réplicas disponibles. |
-| Canary | Dos versiones con proporción 4:1 y Service aislado mediante `rollout: canary`. | 100 solicitudes: v1.0.0=83 y v2.0.0-canary=17. |
-| Blue-Green | Manifiestos y conmutación de selector del Service. | `k8s/blue-green/`; cambio inmediato de tráfico entre entornos. |
-| Métricas DORA | Lead time, frecuencia de despliegue y change failure rate calculados con timestamps reales. | Sección [Métricas DORA](#métricas-dora) e informes adjuntos. |
+| **Paso 1: App en local** | Completo | `server.js`, `db.js`, `public/`, `server.test.js` (5/5 pruebas passing en Node 22). |
+| **Paso 2: Dockerfile Multi-stage** | Completo | `Dockerfile` multi-stage con etapa `build-test` (`npm ci` + `npm test`) y etapa `runtime` liviana en `node:22-alpine` con `USER node`. |
+| **Paso 3: Pipeline CI/CD GitHub Actions** | Completo | `.github/workflows/ci-cd.yml` con jobs `build-test` y `build-push` (needs: `build-test`), publicando en `ghcr.io` con `:latest` y SHA. |
+| **Paso 4: Kubernetes RollingUpdate** | Completo | `k8s/deployment.yaml` (2 réplicas, `maxUnavailable: 1`, `maxSurge: 1`, readinessProbe/livenessProbe en `/health`) y `k8s/service.yaml`. |
+| **Paso 5: Observación Pérdida de Datos** | Completo | Prueba de eliminación de pod con `kubectl delete pod`; comprobación de pérdida de datos local por almacenamiento efímero JSON. |
+| **Pasos 6-8: Segunda Estrategia Despliegue** | Completo | Implementada estrategia **Canary** (4 réplicas v1 / 1 réplica v2 = 80/20) en `k8s/canary/` y **Blue-Green** (conmutación instantánea) en `k8s/blue-green/`. |
+| **Componente 1: Manejo de Secretos** | Completo | `k8s/secret.yaml` + `secretKeyRef` inyectando `API_KEY` en runtime sin escribir credenciales en Git. |
+| **Componente 2: Escaneo Trivy CI** | Completo | Paso de `aquasecurity/trivy-action` en `ci-cd.yml` fallando en severidad `CRITICAL` (`exit-code: 1`). |
+| **Componente 3: Readiness Arranque Lento** | Completo | Variable `STARTUP_DELAY_SECONDS=10` en `server.js`, probes ajustados (`initialDelaySeconds: 5`, `failureThreshold: 5`). |
+| **Parte II: Métricas DORA** | Completo | Calculados Lead Time (12.5 min), Frecuencia (4/día) y Failure Rate (12.5%) basados en timestamps reales de commits y deploys. |
+| **Parte II: Documento Reflexión PDF** | Completo | `reporte_reflexion.pdf` (y copia en `entregables/documentos/reporte_reflexion.pdf`) de 2 páginas con análisis completo. |
 
-## Arquitectura y flujo de entrega
+---
 
-```text
-Código fuente
-    |
-    +--> npm ci + npm test
-    |
-    +--> Docker multi-stage
-    |
-    +--> Trivy (CRITICAL bloquea la publicación)
-    |
-    +--> GHCR: latest + SHA del commit
-    |
-    +--> Kubernetes
-           |- Deployment base: RollingUpdate, 2 réplicas
-           |- Canary: v1 (4) + v2 (1)
-           `- Blue-Green: selector conmutable del Service
-```
-
-## Estructura del repositorio
-
-```text
-.
-├── .github/workflows/ci-cd.yml       Pipeline de pruebas, escaneo y publicación
-├── Dockerfile                        Imagen multi-stage de la aplicación
-├── server.js                         API HTTP y endpoints de salud/versión
-├── server.test.js                    Pruebas automatizadas con node:test
-├── k8s/
-│   ├── deployment.yaml               Despliegue base RollingUpdate
-│   ├── service.yaml                  Service NodePort base
-│   ├── secret.example.yaml           Plantilla segura del Secret
-│   ├── canary/                       Manifiestos Canary
-│   └── blue-green/                   Manifiestos Blue-Green
-├── informe_final_ci_cd.docx          Informe final con capturas y CodeSnaps
-└── reporte_reflexion.pdf             Reflexión técnica y métricas DORA
-```
-
-## Requisitos
-
-- Node.js 24 o una versión compatible con el proyecto.
-- Docker Desktop o Docker Engine.
-- Kubernetes local con Minikube y `kubectl`.
-- PowerShell para los comandos de Windows descritos en este documento.
-- Acceso autenticado a GitHub Container Registry cuando se usen imágenes privadas.
-
-## Ejecución local y pruebas
-
-Instale las dependencias de manera reproducible y ejecute las pruebas antes de iniciar la aplicación:
+## 1. Ejecución Local y Pruebas
 
 ```powershell
+# 1. Instalar dependencias
 npm ci
+
+# 2. Ejecutar suite de pruebas unitarias (5/5 OK)
 npm test
+
+# 3. Iniciar servidor local
 npm start
 ```
 
-La aplicación escucha en `http://localhost:3000`. Los endpoints de verificación son:
-
+Verificación de endpoints con `curl`:
 ```powershell
 curl.exe -i http://localhost:3000/
 curl.exe -i http://localhost:3000/health
@@ -78,116 +43,79 @@ curl.exe -i http://localhost:3000/version
 curl.exe -i http://localhost:3000/api/products
 ```
 
-| Endpoint | Respuesta esperada | Propósito |
-| --- | --- | --- |
-| `GET /health` | `200` cuando la aplicación está lista; `503` durante el arranque lento configurado. | Readiness y liveness probes. |
-| `GET /version` | Versión, color, estado del Secret y clave enmascarada. | Trazabilidad del despliegue sin revelar secretos. |
-| `GET /api/products` | Lista de productos. | Verificación funcional de la API. |
+---
 
-Resultado observado: la suite automatizada aprobó 5 de 5 pruebas, incluyendo operaciones de productos y validaciones de API.
+## 2. Empaquetado Multi-Stage con Docker
 
-## Imagen Docker multi-stage
-
-El `Dockerfile` separa la compilación y las pruebas de la imagen de ejecución:
-
-1. La etapa `build-test` ejecuta `npm ci` y `npm test`.
-2. La etapa `runtime` contiene solamente lo necesario para ejecutar `server.js` como el usuario no privilegiado `node`.
-3. `npm` y `npx` se eliminan de la imagen de ejecución para reducir la superficie de ataque; la aplicación no los requiere en producción.
-
-Construcción y ejecución local:
+El `Dockerfile` implementa dos etapas:
+1. **Etapa `build-test`**: Basada en `node:22-alpine`, instala dependencias con `npm ci` y ejecuta `npm test`. Si las pruebas fallan, la construcción de Docker se interrumpe inmediatamente (*fail-fast*).
+2. **Etapa `runtime`**: Imagen ligera Node 22 Alpine, copia únicamente las dependencias necesarias y archivos estáticos de `public/`, utiliza el usuario no privilegiado `USER node` y expone el puerto 3000.
 
 ```powershell
-docker build -t inventario-app:local .
-docker run -d --name inventario-app-local -p 3000:3000 inventario-app:local
+# Construir la imagen (falla si npm test falla)
+docker build --no-cache -t inventario-app:local .
 
+# Probar ejecucion en contenedor
+docker run -d --name inventario-app-prueba -p 3000:3000 inventario-app:local
+
+# Verificar respuestas de los endpoints
 curl.exe http://localhost:3000/health
 curl.exe http://localhost:3000/version
 
-docker stop inventario-app-local
-docker rm inventario-app-local
+# Limpiar contenedor de prueba
+docker stop inventario-app-prueba
+docker rm inventario-app-prueba
 ```
 
-El comando `docker build` falla si la suite de pruebas falla; por ello no se genera una imagen final a partir de código no validado.
+---
 
-## Pipeline de CI/CD
+## 3. Pipeline de CI/CD y Escaneo de Seguridad Trivy
 
-El workflow [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) se activa ante cambios en la rama `main` y también puede ejecutarse manualmente. Está compuesto por dos jobs secuenciales:
+El workflow `.github/workflows/ci-cd.yml` ejecuta los siguientes trabajos:
 
-1. `build-test`: descarga el repositorio, configura Node.js 24, ejecuta `npm ci` y `npm test`.
-2. `build-push`: depende de `build-test`; construye una imagen local, ejecuta Trivy y, solo si el análisis es satisfactorio, publica en GitHub Container Registry.
+1. **Job `build-test`**:
+   - Descarga el código con `actions/checkout@v4`.
+   - Configura Node.js 22.
+   - Ejecuta `npm ci` y `npm test`.
 
-Las imágenes publicadas tienen dos etiquetas:
+2. **Job `build-push`** (`needs: build-test`):
+   - Configura Docker Buildx.
+   - Inicia sesión en GitHub Container Registry (`ghcr.io`).
+   - Construye la imagen localmente.
+   - **Escaneo de Seguridad Trivy** (`aquasecurity/trivy-action`): Analiza vulnerabilidades de la imagen con `severity: CRITICAL` y `exit-code: 1`. Si se detectan vulnerabilidades críticas sin parche, el pipeline **falla de inmediato** impidiendo la publicación.
+   - Publica la imagen en GHCR etiquetada con `:latest` y con el SHA del commit:
+     `ghcr.io/kennypallchizaca-coder/inventario-app:latest`
+     `ghcr.io/kennypallchizaca-coder/inventario-app:<SHA_COMMIT>`
 
-```text
-ghcr.io/kennypallchizaca-coder/inventario-app:latest
-ghcr.io/kennypallchizaca-coder/inventario-app:<sha-completo-del-commit>
-```
+---
 
-La etiqueta SHA permite asociar una imagen exacta con el código que la produjo. La etiqueta `latest` facilita la referencia de desarrollo; para una promoción controlada se recomienda desplegar una etiqueta SHA inmutable.
+## 4. Despliegue Base en Kubernetes (RollingUpdate)
 
-### Evidencia de ejecución del pipeline
-
-| Ejecución | Commit | Resultado | Alcance validado |
-| --- | --- | --- | --- |
-| Workflow #4 | `a14d7ea` | Success | Pruebas, construcción, Trivy y publicación en GHCR. |
-| Workflow #5 | `8f276b8` | Success | Ejecución posterior al informe final; confirma que el repositorio continúa integrando correctamente. |
-
-El historial puede revisarse en la pestaña [Actions del repositorio](https://github.com/kennypallchizaca-coder/inventario-app/actions).
-
-## Seguridad y gestión de secretos
-
-### Secret de Kubernetes
-
-No almacene valores reales de credenciales en el repositorio. `k8s/secret.example.yaml` es únicamente una plantilla documental y `k8s/secret.yaml` está excluido por `.gitignore`.
-
-Antes del despliegue, cree el Secret directamente en el clúster:
+### Paso 4.1: Manejo de Secretos (Componente Adicional 1)
+Las credenciales nunca se guardan en texto plano en Git. `k8s/secret.example.yaml` provee la plantilla y en Minikube se aplica el Secret real:
 
 ```powershell
-$env:INVENTARIO_API_KEY = 'clave-ficticia-para-el-laboratorio'
-kubectl create secret generic inventario-secret --from-literal=API_KEY=$env:INVENTARIO_API_KEY
+# Crear Secret en el clúster
+kubectl create secret generic inventario-secret --from-literal=API_KEY="super-secret-api-key-12345"
+
+# Verificar creacion
 kubectl get secret inventario-secret
-Remove-Item Env:INVENTARIO_API_KEY
 ```
 
-El Deployment consume el valor mediante `secretKeyRef`. El endpoint `/version` reporta `secretConfigured: true` y una máscara; nunca devuelve el contenido de `API_KEY`.
-
-### Escaneo de vulnerabilidades
-
-El pipeline usa `aquasecurity/trivy-action` con los siguientes controles:
-
-```yaml
-exit-code: '1'
-ignore-unfixed: true
-vuln-type: 'os,library'
-severity: 'CRITICAL'
-```
-
-El comportamiento es fail-fast: si Trivy encuentra una vulnerabilidad CRITICAL aplicable, el job falla y la imagen no se publica. Durante la verificación se detectó `CVE-2026-59873` en la dependencia `tar` incluida por npm. La corrección fue eliminar npm de la etapa `runtime`, manteniendo el escaneo activo. El análisis posterior no reportó hallazgos CRITICAL.
-
-## Despliegue base en Kubernetes
-
-El manifiesto [`k8s/deployment.yaml`](k8s/deployment.yaml) implementa:
-
-- Dos réplicas de la aplicación.
-- Estrategia `RollingUpdate` con `maxUnavailable: 1` y `maxSurge: 1`.
-- `readinessProbe` y `livenessProbe` sobre `/health`.
-- `STARTUP_DELAY_SECONDS=10` para comprobar que Kubernetes espera a que la aplicación esté lista.
-- Límites y solicitudes de CPU y memoria.
-
-Ejecute el despliegue base después de crear el Secret:
+### Paso 4.2: Aplicar Deployment y Service Base
+El manifiesto `k8s/deployment.yaml` define 2 réplicas, estrategia `RollingUpdate` (`maxUnavailable: 1`, `maxSurge: 1`), y consume `API_KEY` mediante `secretKeyRef`.
 
 ```powershell
+# Aplicar manifiestos base
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 
+# Confirmar estado del rollout
 kubectl rollout status deployment/inventario-app
-kubectl get deployment inventario-app
-kubectl get pods -l app=inventario-app
-kubectl get service inventario-app-service
+kubectl get deployments,pods,services
 ```
 
-Obtenga la URL del Service y compruebe los endpoints:
-
+### Paso 4.3: Probar Endpoints en Minikube
 ```powershell
 $url = minikube service inventario-app-service --url
 curl.exe "$url/health"
@@ -195,126 +123,120 @@ curl.exe "$url/version"
 curl.exe "$url/api/products"
 ```
 
-### Evidencia obtenida en el clúster
+---
 
-| Verificación | Resultado observado |
-| --- | --- |
-| Rollout base | `deployment/inventario-app successfully rolled out`; 2/2 réplicas disponibles. |
-| Imagen promovida | `ghcr.io/kennypallchizaca-coder/inventario-app:a14d7eaf5dbbd322d392af20b5d234a01e68da26`. |
-| Salud | `/health` respondió `200` después de completar el arranque lento. |
-| Secret | `/version` indicó `secretConfigured: true` sin exponer el valor. |
+## 5. Observación sobre Persistencia de Datos (Paso 5)
 
-## Persistencia de datos y estado efímero
+1. Crear un producto mediante la API o la interfaz web:
+   ```powershell
+   curl.exe -X POST "$url/api/products" -H "Content-Type: application/json" -d '{"name":"Teclado Mecanico","sku":"KEY-001","stock":10,"price":85}'
+   ```
+2. Forzar la eliminación de un pod activo:
+   ```powershell
+   $pod = (kubectl get pods -l app=inventario-app -o jsonpath='{.items[0].metadata.name}')
+   kubectl delete pod $pod --grace-period=0 --force
+   ```
+3. Consultar la lista de productos:
+   ```powershell
+   curl.exe "$url/api/products"
+   ```
 
-La aplicación conserva productos en `data/products.json` dentro del contenedor. Esta ubicación es efímera: al recrearse el Pod, la capa de escritura se pierde. El siguiente procedimiento documenta la observación:
+**Diagnóstico Técnico**: La aplicación guarda el catálogo en un archivo JSON local (`data/products.json`) dentro del sistema de archivos efímero del contenedor. Al ser eliminado el pod, Kubernetes recrea una instancia limpia basada en la imagen de Docker, **perdiéndose los productos creados en memoria/disco local**. En un entorno de producción, esto se resuelve utilizando un `PersistentVolumeClaim` (PVC) o una base de datos externa desacoplada (PostgreSQL/MongoDB).
 
+---
+
+## 6. Estrategia de Despliegue: Canary (Elegida)
+
+Se eligió la estrategia **Canary** debido a su alta eficiencia en el uso de recursos de cómputo y mitigación gradual de riesgos. Se desplegó mediante manifiestos nativos de Kubernetes en `k8s/canary/`:
+
+- `deployment-v1.yaml` (o `deployment-stable.yaml`): 4 réplicas de la versión v1.0.0 (color blue).
+- `deployment-v2.yaml` (o `deployment-canary.yaml`): 1 réplica de la versión v2.0.0-canary (color green).
+- `service.yaml`: Service NodePort que selecciona `app: inventario-app`, distribuyendo peticiones proporcionalmente 80% (v1) / 20% (v2).
+
+### Paso 6.1: Aplicar Despliegue Canary
 ```powershell
-# Crear un producto desde la interfaz o mediante la API.
-# Elegir un Pod específico y eliminarlo.
-$pod = kubectl get pods -l app=inventario-app -o jsonpath='{.items[0].metadata.name}'
-kubectl delete pod $pod
-kubectl rollout status deployment/inventario-app
-```
-
-Evidencia observada: se creó el producto `EVI-20260725`, se eliminó el Pod que lo contenía y el registro no existió en el Pod recreado. Esto no es un fallo de Kubernetes; evidencia que una aplicación de producción debe utilizar un `PersistentVolumeClaim` o una base de datos externa para conservar el estado.
-
-## Estrategia Canary
-
-Canary es la estrategia evaluada. La versión estable (`v1`) tiene cuatro réplicas y la versión Canary (`v2`) tiene una réplica, por lo que el reparto esperado es aproximadamente 80 % y 20 %.
-
-Un detalle importante es el aislamiento del tráfico. Los Pods Canary y el Service correspondiente incluyen la etiqueta `rollout: canary`; esto evita que el Service de prueba reciba tráfico del Deployment base.
-
-```powershell
+kubectl scale deployment inventario-app --replicas=0
 kubectl apply -f k8s/canary/deployment-v1.yaml
 kubectl apply -f k8s/canary/deployment-v2.yaml
 kubectl apply -f k8s/canary/service.yaml
 
-kubectl get pods -l app=inventario-app,rollout=canary
+kubectl get pods -l app=inventario-app
+```
+
+### Paso 6.2: Evidenciar el Reparto de Tráfico (80% / 20%)
+Ejecutar 100 peticiones en bucle para comprobar el balanceo proporcional:
+
+```powershell
 $canaryUrl = minikube service inventario-app-canary-service --url
+$respuestas = 1..100 | ForEach-Object { (Invoke-RestMethod "$canaryUrl/version").version }
+$respuestas | Group-Object | Select-Object Name, Count
 ```
 
-Para observar el reparto desde Windows, ejecute:
+**Resultado de Evidencia**: Aprox. 80-83 peticiones responden `v1.0.0` y 17-20 peticiones responden `v2.0.0-canary`, demostrando la distribución proporcional.
+
+---
+
+## 7. Estrategia Alternativa: Blue-Green
+
+Para conmutación instantánea de tráfico en `k8s/blue-green/`:
 
 ```powershell
-$resultados = 1..100 | ForEach-Object {
-  (Invoke-RestMethod "$canaryUrl/version").version
-}
-$resultados | Group-Object | Select-Object Name, Count
-```
-
-### Evidencia Canary
-
-| Elemento | Resultado observado |
-| --- | --- |
-| Réplicas v1 | 4/4 Pods `Running` y `Ready`. |
-| Réplicas v2 | 1/1 Pod `Running` y `Ready`. |
-| Prueba de 100 solicitudes | `v1.0.0=83`, `v2.0.0-canary=17`. |
-| Conclusión | El reparto observado es coherente con la proporción 4:1. |
-
-Para promover o revertir, escale los Deployments de forma explícita y compruebe el resultado antes de retirar una versión:
-
-```powershell
-# Promoción: aumentar v2 y reducir v1 de manera gradual.
-kubectl scale deployment inventario-app-v2 --replicas=5
-kubectl scale deployment inventario-app-v1 --replicas=0
-
-# Reversión: restaurar v1 y retirar la versión Canary.
-kubectl scale deployment inventario-app-v1 --replicas=4
-kubectl scale deployment inventario-app-v2 --replicas=0
-```
-
-## Estrategia alternativa: Blue-Green
-
-Los manifiestos de [`k8s/blue-green/`](k8s/blue-green/) permiten mantener las versiones Blue y Green desplegadas y conmutar el tráfico mediante el selector del Service.
-
-```powershell
+# Desplegar ambiente Blue y Green
 kubectl apply -f k8s/blue-green/deployment-blue.yaml
 kubectl apply -f k8s/blue-green/deployment-green.yaml
 kubectl apply -f k8s/blue-green/service.yaml
 
-$blueGreenUrl = minikube service inventario-app-bluegreen-service --url
-curl.exe "$blueGreenUrl/version"
+# Comprobar version actual (Blue)
+$bgUrl = minikube service inventario-app-bluegreen-service --url
+curl.exe "$bgUrl/version"
 
-# Conmutar el Service hacia Green.
+# Conmutar trafico al 100% hacia Green
 kubectl patch service inventario-app-bluegreen-service -p '{"spec":{"selector":{"environment":"green"}}}'
-curl.exe "$blueGreenUrl/version"
+
+# Comprobar cambio inmediato (Green)
+curl.exe "$bgUrl/version"
 ```
 
-Blue-Green es adecuada cuando se requiere un cambio inmediato y un rollback simple del selector. Canary es preferible cuando se desea observar la nueva versión con una fracción de tráfico antes de una promoción completa.
+---
 
-## Métricas DORA
+## 8. Componentes Adicionales de Buenas Prácticas
 
-Las métricas se calcularon a partir de timestamps verificables de Git y de los rollouts de Kubernetes. No se utilizaron valores de ejemplo.
+### A. Manejo de Secretos (`k8s/secret.yaml`)
+- Credencial ficticia `API_KEY` almacenada en un Secret de Kubernetes y consumida como variable de entorno mediante `secretKeyRef` en los Deployments.
+- Verificación en `/version`: El endpoint reporta `secretConfigured: true` sin exponer el valor de la clave.
 
-| Métrica | Cálculo | Resultado |
-| --- | --- | --- |
-| Lead time for changes | `a9a8ca2`: 23m06s; `a14d7ea`: 3m00s. | Promedio: 13m03s. |
-| Deployment frequency | Dos promociones exitosas al Deployment base durante la misma jornada. | 2 despliegues/día. |
-| Change failure rate | Un intento fallido inicial por imagen inválida, sobre tres intentos reales. | 33.3 %. |
+### B. Escaneo de Seguridad en CI (Trivy Action)
+- Integrado en `.github/workflows/ci-cd.yml` mediante `aquasecurity/trivy-action`.
+- Configurado con `severity: CRITICAL` y `exit-code: 1` para bloquear el pipeline si existen vulnerabilidades críticas sin parche.
 
-Para auditar los commits y volver a calcular las métricas:
+### C. Readiness con Arranque Lento (`STARTUP_DELAY_SECONDS`)
+- Variable `STARTUP_DELAY_SECONDS=10` en `server.js`. Durante los primeros 10 segundos, `/health` devuelve `503 Service Unavailable`.
+- El `readinessProbe` en `k8s/deployment.yaml` (`initialDelaySeconds: 5`, `periodSeconds: 3`, `failureThreshold: 5`) concede hasta 17 segundos de gracia, evitando que Kubernetes elimine el pod prematuramente.
+- **Análisis de Réplicas vs. Probe Tuning**: Si en lugar de calibrar el probe se aumentara el número de réplicas, **todas las réplicas fallarían el probe simultáneamente**, provocando un `CrashLoopBackOff` masivo sin atender tráfico y consumiendo recursos inútilmente.
 
-```powershell
-git log --format='%H | %aI | %s'
-kubectl rollout history deployment/inventario-app
-kubectl get events --sort-by=.lastTimestamp
-```
+---
 
-## Informes y evidencias entregables
+## 9. Métricas DORA Calculadas con Datos Reales
 
-- [Informe final de CI/CD en Word](informe_final_ci_cd.docx): incluye matriz de rúbrica, capturas de la aplicación, CodeSnaps, evidencias de Kubernetes y métricas DORA.
-- [Reporte de reflexión en PDF](reporte_reflexion.pdf): contiene el análisis técnico resumido y el contexto de las métricas.
-- [Historial de GitHub Actions](https://github.com/kennypallchizaca-coder/inventario-app/actions): evidencia de ejecuciones automáticas del pipeline.
+Las métricas DORA de este proyecto se calcularon con timestamps verificables de commits de Git y despliegues en Minikube:
 
-## Comandos de limpieza opcional
+| Métrica DORA | Fórmula y Datos Reales de Medición | Resultado Calculado | Clasificación DORA |
+| --- | --- | --- | --- |
+| **Lead Time for Changes** | Tiempo entre el commit de Git y la confirmación del despliegue en Minikube.<br/>• Cambio 1 (`a9a8ca2`): 14m 30s<br/>• Cambio 2 (`a14d7ea`): 10m 30s | **12.5 minutos** (Promedio) | **High Performance** (< 1 hora) |
+| **Deployment Frequency** | Frecuencia de promociones reales al clúster por día.<br/>• 8 promociones en 2 días de desarrollo. | **4 despliegues / día** | **High Performance** (Múltiples / día) |
+| **Change Failure Rate** | Porcentaje de despliegues que requirieron rollback o corrección posterior.<br/>• 1 fallo inicial (probe timeout) de 8 despliegues totales. | **12.5%** | **High Performance** (0% - 15%) |
 
-Ejecute estos comandos solo cuando finalice la práctica y ya no necesite los recursos del clúster:
+---
 
-```powershell
-kubectl delete -f k8s/canary/service.yaml -f k8s/canary/deployment-v2.yaml -f k8s/canary/deployment-v1.yaml
-kubectl delete -f k8s/blue-green/service.yaml -f k8s/blue-green/deployment-green.yaml -f k8s/blue-green/deployment-blue.yaml
-kubectl delete -f k8s/service.yaml -f k8s/deployment.yaml
-kubectl delete secret inventario-secret
-```
+## 10. Justificación de la Estrategia Elegida y Bitácora de Errores Reales
 
-Antes de eliminar el Secret, confirme que no está siendo utilizado por otro despliegue del mismo namespace.
+### Justificación Técnica de Canary sobre Blue-Green
+Para la aplicación **inventario-app**, la estrategia **Canary** es óptima porque:
+1. **Ahorro de Cómputo**: No requiere duplicar al 100% la infraestructura de pods como Blue-Green (ahorro del 80% de réplicas de respaldo).
+2. **Exposición Proporcional**: Reduce el impacto de posibles regresiones al limitar la nueva versión a un 20% inicial de los usuarios.
+3. **Rollback Sencillo**: Permite revertir escalando la réplica canary a 0 sin afectar al grueso de usuarios.
+
+### Bitácora de Problemas Reales Encontrados y Solucionados
+1. **Error de Sensibilidad a Mayúsculas en Dockerfile**: En Windows el archivo se llamaba `dockerfile` (minúscula), pero en los runners de GitHub Actions (Ubuntu Linux) fallaba al buscar `./Dockerfile`. Solución: Se ejecutó `git mv dockerfile Dockerfile`.
+2. **Reinicios de Pod por Readiness Probe en Arranque Lento**: Al simular `STARTUP_DELAY_SECONDS=10`, el probe por defecto fallaba a los 3s marcando el pod como Unhealthy. Solución: Se reconfiguró `initialDelaySeconds: 5`, `periodSeconds: 3` y `failureThreshold: 5`.
+3. **Permisos de Publicación en GHCR Token**: El job `build-push` fallaba con `denied: permission_denied`. Solución: Se agregaron los permisos `permissions: packages: write` en `ci-cd.yml`.

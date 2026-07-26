@@ -9,6 +9,7 @@ spec:
 
   selector:
     app: inventario-app
+    track: base
 
   ports:
     - name: http

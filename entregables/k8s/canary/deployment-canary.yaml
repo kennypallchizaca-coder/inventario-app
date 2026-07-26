@@ -1,46 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inventario-app
+  name: inventario-app-v2
   labels:
     app: inventario-app
-    track: base
+    release: canary
 spec:
-  replicas: 2
-
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 1
-
+  replicas: 1
   selector:
     matchLabels:
       app: inventario-app
-      track: base
-
+      release: canary
   template:
     metadata:
       labels:
         app: inventario-app
-        track: base
+        release: canary
     spec:
       containers:
         - name: inventario-app
-          image: ghcr.io/kennypallchizaca-coder/inventario-app:a14d7eaf5dbbd322d392af20b5d234a01e68da26
+          image: ghcr.io/kennypallchizaca-coder/inventario-app:<REEMPLAZAR_CON_SHA_PUBLICADO>
           imagePullPolicy: IfNotPresent
-
           ports:
             - name: http
               containerPort: 3000
-
           env:
             - name: PORT
               value: "3000"
             - name: APP_VERSION
-              value: "v1"
+              value: "v2.0.0-canary"
             - name: APP_COLOR
-              value: "blue"
+              value: "green"
             - name: STARTUP_DELAY_SECONDS
               value: "10"
             - name: API_KEY
@@ -48,7 +38,6 @@ spec:
                 secretKeyRef:
                   name: inventario-app-secret
                   key: API_KEY
-
           readinessProbe:
             httpGet:
               path: /health
@@ -57,7 +46,6 @@ spec:
             periodSeconds: 3
             timeoutSeconds: 2
             failureThreshold: 10
-
           startupProbe:
             httpGet:
               path: /health
@@ -65,7 +53,6 @@ spec:
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 20
-
           livenessProbe:
             httpGet:
               path: /health
@@ -74,7 +61,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
-
           resources:
             requests:
               cpu: "50m"

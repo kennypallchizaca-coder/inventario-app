@@ -9,7 +9,7 @@ const SIMULATE_FAILURE = process.env.SIMULATE_FAILURE === 'true';
 const STARTUP_DELAY_SECONDS = parseInt(process.env.STARTUP_DELAY_SECONDS || '0', 10);
 const API_KEY = process.env.API_KEY || null;
 
-function createApp() {
+function createApp({ startupDelaySeconds = STARTUP_DELAY_SECONDS } = {}) {
   const startTime = Date.now();
   const app = express();
   app.use(express.json());
@@ -17,10 +17,10 @@ function createApp() {
 
   app.get('/health', (req, res) => {
     const elapsedSeconds = (Date.now() - startTime) / 1000;
-    if (elapsedSeconds < STARTUP_DELAY_SECONDS) {
+    if (elapsedSeconds < startupDelaySeconds) {
       return res.status(503).json({
-        status: 'starting',
-        reason: `app en arranque lento (${Math.ceil(STARTUP_DELAY_SECONDS - elapsedSeconds)}s restantes)`
+        status: 'not-ready',
+        reason: `app en arranque lento (${Math.ceil(startupDelaySeconds - elapsedSeconds)}s restantes)`
       });
     }
 
@@ -35,8 +35,7 @@ function createApp() {
       version: APP_VERSION,
       color: APP_COLOR,
       hostname: os.hostname(),
-      secretConfigured: Boolean(API_KEY),
-      secretMasked: API_KEY ? `${API_KEY.slice(0, 3)}***` : 'no-configurado'
+      secretConfigured: Boolean(API_KEY)
     });
   });
 

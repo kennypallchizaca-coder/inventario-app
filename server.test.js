@@ -46,7 +46,7 @@ after(() => {
   if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
 });
 
-test('GET /health responde 200 y status ok', async () => {
+test('GET /health responde 200 y status ok cuando la aplicacion esta lista', async () => {
   const app = createApp();
   const server = await startServer(app);
   const res = await request(server, 'GET', '/health');
@@ -55,14 +55,25 @@ test('GET /health responde 200 y status ok', async () => {
   server.close();
 });
 
-test('GET /version responde con version, color y secreto', async () => {
+test('GET /health responde 503 durante el arranque lento', async () => {
+  const app = createApp({ startupDelaySeconds: 60 });
+  const server = await startServer(app);
+  const res = await request(server, 'GET', '/health');
+  assert.strictEqual(res.status, 503);
+  assert.strictEqual(res.body.status, 'not-ready');
+  server.close();
+});
+
+test('GET /version responde con version, color, hostname y estado del Secret', async () => {
   const app = createApp();
   const server = await startServer(app);
   const res = await request(server, 'GET', '/version');
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.version);
   assert.ok(res.body.color);
+  assert.ok(res.body.hostname);
   assert.strictEqual(typeof res.body.secretConfigured, 'boolean');
+  assert.strictEqual(Object.hasOwn(res.body, 'secretMasked'), false);
   server.close();
 });
 
