@@ -141,8 +141,6 @@ La reflexión también documenta la decisión Canary (cuatro réplicas estables 
 
 - [Informe final en PDF](entregables/documentos/informe.pdf)
 - [Reflexión técnica en PDF](entregables/documentos/reporte_reflexion.pdf)
-- [Reflexión técnica editable en Word](entregables/documentos/reporte_reflexion.docx)
-- [Guion de demostración](demostracion.md)
 - `entregables/evidencias/`: capturas de Docker, CI/CD, Kubernetes, Canary, componentes adicionales, persistencia y DORA.
 
 Las capturas deben mostrar el comando completo y su salida, sin recortar información relevante. Los archivos de `entregables/` se mantienen fuera del historial de Git por su tamaño; para la entrega AVAC se comprime esa carpeta una vez que se hayan actualizado las evidencias externas.
