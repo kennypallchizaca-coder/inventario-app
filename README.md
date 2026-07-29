@@ -146,7 +146,7 @@ kubectl apply -f k8s/canary/service.yaml
 
 # Verificar el reparto proporcional ejecutando 100 peticiones
 $canaryUrl = minikube service inventario-app-canary-service --url
-$respuestas = 1..100 | ForEach-Object { (Invoke-RestMethod "$canaryUrl/version").release }
+$respuestas = 1..100 | ForEach-Object { (Invoke-RestMethod "$canaryUrl/version").version }
 $respuestas | Group-Object | Select-Object Name, Count
 ```
 
