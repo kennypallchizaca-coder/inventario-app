@@ -88,7 +88,7 @@ kubectl apply -f k8s/canary/deployment-stable.yaml
 kubectl apply -f k8s/canary/deployment-canary.yaml
 kubectl apply -f k8s/canary/service.yaml
 $canaryUrl = minikube service inventario-app-canary-service --url
-1..100 | ForEach-Object { (Invoke-RestMethod "$canaryUrl/version").release } |
+1..100 | ForEach-Object { (Invoke-RestMethod "$canaryUrl/version").version } |
   Group-Object | Select-Object Name, Count
 ```
 
