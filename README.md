@@ -178,20 +178,28 @@ Al eliminar el pod, Kubernetes crea una nueva replica basada en la imagen limpia
 
 ---
 
-## 7. Evaluacion Cuantitativa con Metricas DORA
+## 7. Metricas DORA con Promociones Reales
 
-Las metricas DORA se calcularon utilizando timestamps reales extraidos del historial de commits de Git y de los eventos de despliegue en Minikube:
+La medicion final se ejecuto en el contexto `minikube`, namespace `inventario-final`, con dos SHAs publicados en GHCR. Cada registro vincula el timestamp del commit, la promocion y la condicion exitosa del Deployment. La salida completa se conserva en `entregables/evidencias/07-metricas-dora/mediciones-dora.md`.
 
-| Metrica DORA | Formula y Datos Medicion | Resultado Calculado | Clasificacion DORA |
+| Metrica DORA | Calculo verificable | Resultado | Nivel |
 | --- | --- | --- | --- |
-| **Lead Time for Changes** | Tiempo desde el commit hasta el rollout exitoso en el cluster.<br/>• Cambio 1: 4m 32s<br/>• Cambio 2: 4m 15s | **4 min 24 s** (Promedio) | **Alto / Elite** (< 1 hora) |
-| **Deployment Frequency** | Frecuencia de promociones exitosas al cluster por dia.<br/>• 5 promociones en 3 dias de trabajo. | **1.67 despliegues / dia** | **Alto** (Cadencia diaria) |
-| **Change Failure Rate** | Porcentaje de despliegues que requirieron correccion o rollback.<br/>• 1 fallo inicial (probe timeout) en 5 despliegues. | **20 %** | **Medio** (15% - 46%) |
+| **Lead Time for Changes** | SHA `a14d7ea`: 95 h 07 min 07 s. SHA `23462bf`: 61 h 34 min 48 s. Promedio de ambos valores. | **78 h 20 min 58 s** | **Alto**: entre un dia y una semana. |
+| **Deployment Frequency** | 2 promociones exitosas al Deployment durante el 29/07/2026. | **2 despliegues por dia** | **Alto**: cadencia diaria. |
+| **Change Failure Rate** | 0 promociones con rollback o correccion / 2 promociones x 100. | **0 %** | **Alto/elite**: menor al 15 %. |
+
+Comandos de verificacion:
+
+```powershell
+kubectl --context minikube -n inventario-final rollout history deployment/inventario-app
+kubectl --context minikube -n inventario-final get deployment,pods -o wide
+kubectl --context minikube -n inventario-final get deployment inventario-app -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
 
 ---
 
 ## 8. Resolucion de Desafios de Ingenieria
 
 1. **Compatibilidad Multiplataforma en Dockerfile**: Se normalizo el archivo a `Dockerfile` con mayuscula inicial para evitar fallos de sensibilidad a mayusculas en los runners Linux de GitHub Actions.
-2. **Calibracion de Probes de Diagnostico**: Se introdujo `startupProbe` y se ajusto `initialDelaySeconds: 5` y `failureThreshold: 5` en el `readinessProbe` para evitar bucles de `CrashLoopBackOff` durante el arranque de 10 segundos.
+2. **Calibracion de Probes de Diagnostico**: `startupProbe` tolera hasta 40 segundos de arranque; `readinessProbe` consulta cada 3 segundos con `failureThreshold: 10` y mantiene el Pod fuera del Service mientras `/health` responde 503. `livenessProbe` comienza a los 30 segundos y queda reservada para reinicios por fallos reales.
 3. **Permisos de Registro GHCR**: Se asignaron permisos explicitos `packages: write` en el workflow de CI/CD para autorizar la autenticacion y publicacion segura de imagenes en GitHub Container Registry.

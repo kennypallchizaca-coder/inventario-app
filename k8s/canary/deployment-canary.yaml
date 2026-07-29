@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: inventario-app
-          image: ghcr.io/kennypallchizaca-coder/inventario-app:<REEMPLAZAR_CON_SHA_PUBLICADO>
+          image: ghcr.io/kennypallchizaca-coder/inventario-app:23462bfbdb23c22b3d028f6e8edab0831165fc05
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

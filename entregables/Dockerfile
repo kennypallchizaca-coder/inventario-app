@@ -11,7 +11,6 @@ COPY server.js ./
 COPY db.js ./
 COPY server.test.js ./
 COPY public ./public
-COPY data ./data
 
 RUN npm test
 

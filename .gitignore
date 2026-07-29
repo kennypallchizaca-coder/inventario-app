@@ -11,5 +11,4 @@ entregables/k8s/secret.yaml
 .playwright-cli/
 tmp/
 output/
-demostracion.md
     
