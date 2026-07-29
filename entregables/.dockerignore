@@ -1,11 +1,11 @@
 node_modules
 npm-debug.log*
 .git
-.DS_Store
+.github/
 data/*.json
-entregables/
-output/
-tmp/
+documentos/
+evidencias/
+k8s/
 *.zip
 *.pdf
 *.docx
